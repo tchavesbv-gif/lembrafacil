@@ -73,13 +73,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# INICIALIZAÇÃO DO SUPABASE
+# INICIALIZAÇÃO DO SUPABASE COM VALIDAÇÃO DE SEGREDOS
 @st.cache_resource
 def init_supabase() -> Client:
-    url = st.secrets["SUPABASE_URL"].rstrip("/")
+    if "SUPABASE_URL" not in st.secrets or "SUPABASE_KEY" not in st.secrets:
+        st.error("⚠️ As credenciais 'SUPABASE_URL' ou 'SUPABASE_KEY' não foram encontradas nos Secrets do Streamlit Cloud!")
+        st.stop()
+        
+    url = st.secrets["SUPABASE_URL"].strip().rstrip("/")
     if url.endswith("/rest/v1"):
         url = url[:-8]
-    key = st.secrets["SUPABASE_KEY"]
+    key = st.secrets["SUPABASE_KEY"].strip()
     return create_client(url, key)
 
 supabase = init_supabase()
