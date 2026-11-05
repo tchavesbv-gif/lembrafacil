@@ -5,81 +5,30 @@ from datetime import datetime, date
 import io
 from PIL import Image
 
-# Configuração da página para mobile e desktop
+# Configuração da página
 st.set_page_config(
-    page_title="Gestor Prático SaaS",
-    page_icon="📱",
+    page_title="Gestor Prático SaaS - Master",
+    page_icon="👑",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Estilização CSS Avançada
+# Estilização CSS
 st.markdown("""
     <style>
-        .main-title {
-            font-size: 1.4rem !important;
-            font-weight: bold;
-            color: #1E3A8A;
-            margin-bottom: 0px;
-        }
-        .sub-title {
-            color: #666; 
-            font-size: 0.8rem; 
-            margin-top: -3px;
-            margin-bottom: 10px;
-        }
-        
-        div[data-testid="column"] button {
-            width: 100%;
-            border-radius: 12px;
-            padding: 10px 4px;
-            height: auto;
-            min-height: 70px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.08);
-            border: 2px solid rgba(0,0,0,0.05);
-        }
-
-        div[data-testid="column"]:nth-of-type(1) button { background-color: #E3F2FD; color: #0D47A1; border-color: #90CAF9; }
-        div[data-testid="column"]:nth-of-type(2) button { background-color: #FFF8E1; color: #F57F17; border-color: #FFE082; }
-        div[data-testid="column"]:nth-of-type(3) button { background-color: #F3E5F5; color: #4A148C; border-color: #CE93D8; }
-        div[data-testid="column"]:nth-of-type(4) button { background-color: #E8F5E9; color: #1B5E20; border-color: #A5D6A7; }
-
-        .wsp-button {
-            display: block;
-            width: 100%;
-            background-color: #25D366;
-            color: white !important;
-            text-align: center;
-            padding: 8px;
-            border-radius: 8px;
-            font-weight: bold;
-            text-decoration: none;
-            margin-top: 8px;
-        }
-
-        .stButton button {
-            border-radius: 8px;
-            font-weight: bold;
-        }
-
-        div.stExpander {
-            border-radius: 10px !important;
-            border: 1px solid #e2e8f0 !important;
-            margin-bottom: 6px;
-            background-color: #fff;
-        }
+        .main-title { font-size: 1.4rem !important; font-weight: bold; color: #1E3A8A; margin-bottom: 0px; }
+        .sub-title { color: #666; font-size: 0.8rem; margin-top: -3px; margin-bottom: 10px; }
+        .stButton button { border-radius: 8px; font-weight: bold; }
+        div.stExpander { border-radius: 10px !important; border: 1px solid #e2e8f0 !important; margin-bottom: 6px; background-color: #fff; }
     </style>
 """, unsafe_allow_html=True)
 
-# INICIALIZAÇÃO DO SUPABASE COM VALIDAÇÃO DE SEGREDOS
+# INICIALIZAÇÃO DO SUPABASE
 @st.cache_resource
 def init_supabase() -> Client:
     if "SUPABASE_URL" not in st.secrets or "SUPABASE_KEY" not in st.secrets:
-        st.error("⚠️ As credenciais 'SUPABASE_URL' ou 'SUPABASE_KEY' não foram encontradas nos Secrets do Streamlit Cloud!")
+        st.error("⚠️ As credenciais do Supabase não foram encontradas nos Secrets!")
         st.stop()
-        
     url = st.secrets["SUPABASE_URL"].strip().rstrip("/")
     if url.endswith("/rest/v1"):
         url = url[:-8]
@@ -96,7 +45,7 @@ if "user_data" not in st.session_state:
 if "filtro_ativo" not in st.session_state:
     st.session_state.filtro_ativo = "Todos"
 
-# AUTENTICAÇÃO MULTI-TENANT VIA SUPABASE
+# AUTENTICAÇÃO
 def autenticar_usuario(usuario_input, senha_input):
     try:
         res = supabase.table("assinantes").select("*").eq("usuario", usuario_input.strip()).execute()
@@ -112,8 +61,8 @@ def autenticar_usuario(usuario_input, senha_input):
 
 # --- ECRÃ DE LOGIN ---
 if not st.session_state.logged_in:
-    st.markdown('<p class="main-title">📱 Gestor Prático</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Acesso Restrito ao Sistema de Atendimentos</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-title">📱 Gestor Prático SaaS</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Acesso Restrito</p>', unsafe_allow_html=True)
     
     with st.form("login_form"):
         usuario = st.text_input("👤 Utilizador")
@@ -124,7 +73,7 @@ if not st.session_state.logged_in:
             user_data, erro = autenticar_usuario(usuario, senha)
             if user_data:
                 if not user_data.get("ativo", True):
-                    st.error("⚠️ Assinatura suspensa. Entre em contacto com o suporte para reativar o seu acesso.")
+                    st.error("⚠️ Assinatura suspensa. Contacte o suporte.")
                 else:
                     st.session_state.logged_in = True
                     st.session_state.user_data = user_data
@@ -134,20 +83,17 @@ if not st.session_state.logged_in:
                 st.error(f"❌ {erro}")
     st.stop()
 
-# --- ECRÃ DE ALTERAÇÃO OBRIGATÓRIA DE CREDENCIAIS ---
+# --- CONFIGURAÇÃO INICIAL (PRIMEIRO ACESSO) ---
 user = st.session_state.user_data
 if st.session_state.logged_in and user.get("deve_trocar_credenciais", False):
     st.markdown('<p class="main-title">🔐 Configuração Inicial</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Defina o seu novo utilizador, palavra-passe e segmento de atuação.</p>', unsafe_allow_html=True)
-    
     with st.form("form_troca_inicial"):
         novo_usuario = st.text_input("Novo Nome de Utilizador", value=user["usuario"])
         nova_senha = st.text_input("Nova Palavra-passe", type="password")
-        confirma_senha = st.text_input("Confirmar Nova Palavra-passe", type="password")
-        nicho_selecionado = st.selectbox("Selecione o seu Segmento", ["Prestador de Serviços", "Personal Trainer / Fitness", "Saúde / Clínica", "Geral / Outros"])
+        confirma_senha = st.text_input("Confirmar Palavra-passe", type="password")
+        nicho_selecionado = st.selectbox("Segmento de Atuação", ["Prestador de Serviços", "Personal Trainer / Fitness", "Saúde / Clínica", "Geral / Outros"])
         
         btn_atualizar = st.form_submit_button("Guardar e Acessar", use_container_width=True)
-        
         if btn_atualizar:
             if novo_usuario and nova_senha and nova_senha == confirma_senha:
                 if len(nova_senha) >= 4:
@@ -163,38 +109,33 @@ if st.session_state.logged_in and user.get("deve_trocar_credenciais", False):
                         user["nicho"] = nicho_selecionado
                         user["deve_trocar_credenciais"] = False
                         st.session_state.user_data = user
-                        
-                        st.success("✅ Configurações salvas com sucesso!")
+                        st.success("✅ Configurações salvas!")
                         st.rerun()
                     except Exception as ex:
-                        st.error(f"Erro ao salvar: {ex}")
+                        st.error(f"Erro: {ex}")
                 else:
                     st.error("⚠️ A palavra-passe deve ter pelo menos 4 caracteres.")
             else:
-                st.error("⚠️ Preencha todos os campos e verifique se as palavras-passe coincidem.")
+                st.error("⚠️ Preencha os campos corretamente.")
     st.stop()
 
-# DICIONÁRIO DINÂMICO DE RÓTULOS POR NICHO
+# VERIFICA SE É O MASTER ADMIN (Ex: se o utilizador for 'admin')
+is_master_admin = (user.get("usuario") == "admin")
+
+# RÓTULOS POR NICHO
 nicho = user.get("nicho", "Prestador de Serviços")
 if nicho == "Personal Trainer / Fitness":
-    lbl_cliente = "Aluno / Cliente"
-    lbl_id = "Plano / Frequência"
-    lbl_demanda = "Ficha de Treino / Meta"
+    lbl_cliente, lbl_id, lbl_demanda = "Aluno / Cliente", "Plano / Frequência", "Ficha de Treino / Meta"
 elif nicho == "Saúde / Clínica":
-    lbl_cliente = "Paciente"
-    lbl_id = "Cartão SUS / CPF"
-    lbl_demanda = "Caso / Demanda Clínica"
+    lbl_cliente, lbl_id, lbl_demanda = "Paciente", "Cartão SUS / CPF", "Caso / Demanda Clínica"
 else:
-    lbl_cliente = "Cliente / Solicitante"
-    lbl_id = "Cód. Pedido / Referência"
-    lbl_demanda = "Descrição da Demanda / Serviço"
+    lbl_cliente, lbl_id, lbl_demanda = "Cliente / Solicitante", "Cód. Pedido / Referência", "Descrição do Serviço"
 
-# FUNÇÕES DE BANCO DE DADOS
+# FUNÇÕES DE DADOS
 def comprimir_imagem(uploaded_file):
     try:
         image = Image.open(uploaded_file)
-        if image.mode in ("RGBA", "P"):
-            image = image.convert("RGB")
+        if image.mode in ("RGBA", "P"): image = image.convert("RGB")
         image.thumbnail((800, 800))
         buffer = io.BytesIO()
         image.save(buffer, format="JPEG", quality=60, optimize=True)
@@ -204,8 +145,8 @@ def comprimir_imagem(uploaded_file):
 
 def carregar_demandas(assinante_id):
     try:
-        response = supabase.table("pacientes_demandas").select("*").eq("assinante_id", assinante_id).order("id", desc=True).execute()
-        return response.data if response.data else []
+        res = supabase.table("pacientes_demandas").select("*").eq("assinante_id", assinante_id).order("id", desc=True).execute()
+        return res.data if res.data else []
     except Exception:
         return []
 
@@ -213,15 +154,9 @@ def salvar_demanda(assinante_id, nome, telefone, cartao_sus, demanda, reportado,
     try:
         status_inicial = "Delegado" if reportado and reportado.strip() != "" else "Em Aberto"
         dados = {
-            "assinante_id": assinante_id,
-            "nome": nome,
-            "telefone": telefone,
-            "cartao_sus": cartao_sus,
-            "demanda": demanda,
-            "reportado": reportado,
-            "status": status_inicial,
-            "prioridade": prioridade,
-            "data_previsao": str(data_previsao) if data_previsao else None
+            "assinante_id": assinante_id, "nome": nome, "telefone": telefone,
+            "cartao_sus": cartao_sus, "demanda": demanda, "reportado": reportado,
+            "status": status_inicial, "prioridade": prioridade, "data_previsao": str(data_previsao) if data_previsao else None
         }
         return supabase.table("pacientes_demandas").insert(dados).execute()
     except Exception as e:
@@ -241,10 +176,11 @@ st.sidebar.markdown(f"### ⚙️ {user.get('nome_empresa', 'Gestor Prático')}")
 st.sidebar.markdown(f"**Segmento:** {nicho}")
 st.sidebar.markdown("---")
 
-aba_selecionada = st.sidebar.radio(
-    "Navegação do Sistema",
-    ["📋 Operacional", "📊 Business Intelligence (BI)", "❓ FAQ & Ajuda"]
-)
+opcoes_menu = ["📋 Operacional", "📊 Meus Indicadores (BI)", "❓ Central de Ajuda"]
+if is_master_admin:
+    opcoes_menu.insert(0, "👑 Painel Master SaaS (Admin)")
+
+aba_selecionada = st.sidebar.radio("Navegação", opcoes_menu)
 
 st.sidebar.markdown("---")
 if st.sidebar.button("🚪 Sair do Sistema", use_container_width=True):
@@ -256,13 +192,72 @@ dados_demandas = carregar_demandas(user["id"])
 df = pd.DataFrame(dados_demandas) if dados_demandas else pd.DataFrame()
 
 # ==========================================
-# ABA 1: OPERACIONAL
+# PAINEL MASTER SAAS (EXCLUSIVO DO CRIADOR/ADMIN)
 # ==========================================
-if aba_selecionada == "📋 Operacional":
+if is_master_admin and aba_selecionada == "👑 Painel Master SaaS (Admin)":
+    st.markdown('<p class="main-title">👑 Painel Master & Business Intelligence do SaaS</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Métricas de negócio globais, controlo de assinantes e receita</p>', unsafe_allow_html=True)
+    st.markdown("---")
+    
+    try:
+        # Buscar todos os assinantes cadastrados na plataforma
+        res_assinantes = supabase.table("assinantes").select("*").execute()
+        df_assinantes = pd.DataFrame(res_assinantes.data) if res_assinantes.data else pd.DataFrame()
+        
+        # Buscar todas as demandas de TODOS os clientes para métricas globais
+        res_todas_demandas = supabase.table("pacientes_demandas").select("*").execute()
+        df_todas_demandas = pd.DataFrame(res_todas_demandas.data) if res_todas_demandas.data else pd.DataFrame()
+        
+        if not df_assinantes.empty:
+            total_assinantes = len(df_assinantes)
+            ativos = len(df_assinantes[df_assinantes["ativo"] == True]) if "ativo" in df_assinantes.columns else total_assinantes
+            inadimplentes = total_assinantes - ativos
+            
+            # Cálculo fictício/projetado de MRR considerando R$ 14,90 por assinante ativo
+            mrr_estimado = ativos * 14.90
+            
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Total de Assinantes", total_assinantes)
+            c2.metric("Assinantes Ativos", ativos, delta="🟢 Regular")
+            c3.metric("Inadimplentes / Suspensos", inadimplentes, delta="🔴 Bloqueados" if inadimplentes > 0 else "0")
+            c4.metric("MRR Estimado", f"R$ {mrr_estimado:.2f}", delta="📈 R$ 14.90/mês")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                st.markdown("##### 🏢 Distribuição por Segmento (Nicho)")
+                if "nicho" in df_assinantes.columns:
+                    nicho_counts = df_assinantes["nicho"].value_counts().reset_index()
+                    nicho_counts.columns = ["Segmento", "Assinantes"]
+                    st.bar_chart(nicho_counts.set_index("Segmento"))
+                
+            with col_m2:
+                st.markdown("##### 🌐 Volume Global de Operações na Plataforma")
+                st.metric("Total de Demandas Registradas no SaaS", len(df_todas_demandas))
+                if not df_todas_demandas.empty and "status" in df_todas_demandas.columns:
+                    status_global = df_todas_demandas["status"].value_counts().reset_index()
+                    status_global.columns = ["Status", "Quantidade"]
+                    st.bar_chart(status_global.set_index("Status"))
+            
+            st.markdown("---")
+            st.markdown("##### 👥 Lista de Assinantes Cadastrados na Base")
+            st.dataframe(df_assinantes[["id", "nome_empresa", "usuario", "nicho", "ativo"]], use_container_width=True)
+            
+        else:
+            st.info("Nenhum assinante encontrado.")
+            
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do painel Master: {e}")
+
+# ==========================================
+# ABA: OPERACIONAL
+# ==========================================
+elif aba_selecionada == "📋 Operacional":
     col_head1, col_head2 = st.columns([3, 1])
     with col_head1:
         st.markdown(f'<p class="main-title">📱 Gestor Operacional</p>', unsafe_allow_html=True)
-        st.markdown(f'<p class="sub-title">Gestão diária de chamados e atendimentos</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="sub-title">Atendimentos de {user.get("nome_empresa", "Empresa")}</p>', unsafe_allow_html=True)
     
     if not df.empty:
         total = len(df)
@@ -272,21 +267,13 @@ if aba_selecionada == "📋 Operacional":
         
         k1, k2, k3, k4 = st.columns(4)
         with k1:
-            if st.button(f"📊 Total\n\n{total}", key="btn_tot"):
-                st.session_state.filtro_ativo = "Todos"
-                st.rerun()
+            if st.button(f"📊 Total\n\n{total}", key="btn_tot"): st.session_state.filtro_ativo = "Todos"; st.rerun()
         with k2:
-            if st.button(f"🟡 Aberto\n\n{aberto}", key="btn_ab"):
-                st.session_state.filtro_ativo = "Em Aberto"
-                st.rerun()
+            if st.button(f"🟡 Aberto\n\n{aberto}", key="btn_ab"): st.session_state.filtro_ativo = "Em Aberto"; st.rerun()
         with k3:
-            if st.button(f"🟣 Deleg.\n\n{delegado}", key="btn_del"):
-                st.session_state.filtro_ativo = "Delegado"
-                st.rerun()
+            if st.button(f"🟣 Deleg.\n\n{delegado}", key="btn_del"): st.session_state.filtro_ativo = "Delegado"; st.rerun()
         with k4:
-            if st.button(f"🟢 Encerr.\n\n{encerrado}", key="btn_enc"):
-                st.session_state.filtro_ativo = "Encerrado"
-                st.rerun()
+            if st.button(f"🟢 Encerr.\n\n{encerrado}", key="btn_enc"): st.session_state.filtro_ativo = "Encerrado"; st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -297,29 +284,23 @@ if aba_selecionada == "📋 Operacional":
             cartao_sus = st.text_input(f"🆔 {lbl_id}")
             
             col_p1, col_p2 = st.columns(2)
-            with col_p1:
-                prioridade = st.selectbox("⚡ Prioridade", ["Normal", "Média", "Alta", "Urgente"])
-            with col_p2:
-                data_previsao = st.date_input("📅 Previsão Resolução", value=date.today())
-                
+            with col_p1: prioridade = st.selectbox("⚡ Prioridade", ["Normal", "Média", "Alta", "Urgente"])
+            with col_p2: data_previsao = st.date_input("📅 Previsão Resolução", value=date.today())
+            
             demanda = st.text_area(f"📝 {lbl_demanda} *")
             reportado = st.text_input("🏛️ Origem / Delegado a (Vazio = 'Em Aberto')")
             anexo = st.file_uploader("📎 Anexar Foto / Documento", type=["png", "jpg", "jpeg"])
             
             submitted = st.form_submit_button("💾 Guardar Demanda", use_container_width=True)
-            
             if submitted:
                 if nome and demanda:
                     try:
-                        if anexo:
-                            img_comprimida = comprimir_imagem(anexo)
+                        if anexo: comprimir_imagem(anexo)
                         salvar_demanda(user["id"], nome, telefone, cartao_sus, demanda, reportado, prioridade, data_previsao)
-                        st.success("✅ Demanda registada com sucesso!")
+                        st.success("✅ Registado com sucesso!")
                         st.rerun()
-                    except Exception as ex:
-                        st.error(f"❌ {ex}")
-                else:
-                    st.error("⚠️ Preencha os campos obrigatórios.")
+                    except Exception as ex: st.error(f"❌ {ex}")
+                else: st.error("⚠️ Preencha os campos obrigatórios.")
 
     if not df.empty:
         col_f1, col_f2 = st.columns(2)
@@ -327,35 +308,24 @@ if aba_selecionada == "📋 Operacional":
             opcoes_filtro = ["Todos", "Em Aberto", "Delegado", "Encerrado"]
             idx_selecionado = opcoes_filtro.index(st.session_state.filtro_ativo) if st.session_state.filtro_ativo in opcoes_filtro else 0
             filtro_status = st.selectbox("Status", opcoes_filtro, index=idx_selecionado, label_visibility="collapsed")
-            if filtro_status != st.session_state.filtro_ativo:
-                st.session_state.filtro_ativo = filtro_status
-                
+            if filtro_status != st.session_state.filtro_ativo: st.session_state.filtro_ativo = filtro_status
         with col_f2:
             busca = st.text_input("Pesquisar", placeholder="🔍 Pesquisar...", label_visibility="collapsed")
             
         df_filtrado = df.copy()
         if st.session_state.filtro_ativo != "Todos" and "status" in df_filtrado.columns:
             df_filtrado = df_filtrado[df_filtrado["status"] == st.session_state.filtro_ativo]
-            
         if busca and "nome" in df_filtrado.columns:
-            df_filtrado = df_filtrado[
-                df_filtrado["nome"].str.contains(busca, case=False, na=False) | 
-                df_filtrado["cartao_sus"].str.contains(busca, case=False, na=False)
-            ]
+            df_filtrado = df_filtrado[df_filtrado["nome"].str.contains(busca, case=False, na=False) | df_filtrado["cartao_sus"].str.contains(busca, case=False, na=False)]
 
         st.markdown(f"### 📋 Demandas ({len(df_filtrado)}) — *Filtro: {st.session_state.filtro_ativo}*")
 
         for index, row in df_filtrado.iterrows():
-            status_atual = row.get('status', 'Em Aberto')
-            prioridade_atual = row.get('prioridade', 'Normal')
-            previsao = row.get('data_previsao', 'N/A')
-            
+            status_atual, prioridade_atual, previsao = row.get('status', 'Em Aberto'), row.get('prioridade', 'Normal'), row.get('data_previsao', 'N/A')
             prio_emoji = "🟢" if prioridade_atual == "Normal" else ("🟡" if prioridade_atual == "Média" else ("🟠" if prioridade_atual == "Alta" else "🔴"))
             status_emoji = "🟡" if status_atual == "Em Aberto" else ("🟣" if status_atual == "Delegado" else "🟢")
             
-            titulo_card = f"{status_emoji} {prio_emoji} **{row.get('nome', 'Sem Nome')}**"
-            
-            with st.expander(titulo_card):
+            with st.expander(f"{status_emoji} {prio_emoji} **{row.get('nome', 'Sem Nome')}**"):
                 st.markdown(f"**⚡ Prioridade:** {prioridade_atual}")
                 st.markdown(f"**📅 Previsão:** {previsao}")
                 st.markdown(f"**📱 Telemóvel:** {row.get('telefone', 'Não inf.')}")
@@ -369,117 +339,55 @@ if aba_selecionada == "📋 Operacional":
                     st.markdown(f'<a href="https://wa.me/55{tel_limpo}" target="_blank" class="wsp-button">💬 Conversar no WhatsApp</a>', unsafe_allow_html=True)
                 
                 st.markdown("---")
-                
-                opcoes = ["Em Aberto", "Delegado", "Encerrado"]
-                idx = opcoes.index(status_atual) if status_atual in opcoes else 0
-                
-                novo_estado = st.selectbox("Mudar Estado", opcoes, index=idx, key=f"st_{row.get('id', index)}")
+                novo_estado = st.selectbox("Mudar Estado", ["Em Aberto", "Delegado", "Encerrado"], index=["Em Aberto", "Delegado", "Encerrado"].index(status_atual), key=f"st_{row.get('id', index)}")
                 if novo_estado != status_atual:
                     atualizar_status(row['id'], novo_estado)
                     st.success("Atualizado!")
                     st.rerun()
     else:
-        st.info("ℹ️ Sem demandas registadas. Utilize o botão acima para começar.")
+        st.info("ℹ️ Sem demandas registadas.")
 
 # ==========================================
-# ABA 2: BUSINESS INTELLIGENCE (BI)
+# ABA: MEUS INDICADORES (BI)
 # ==========================================
-elif aba_selecionada == "📊 Business Intelligence (BI)":
-    st.markdown('<p class="main-title">📊 Business Intelligence & Indicadores</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Análise de desempenho, carga de trabalho e eficiência operacional</p>', unsafe_allow_html=True)
+elif aba_selecionada == "📊 Meus Indicadores (BI)":
+    st.markdown('<p class="main-title">📊 Meus Indicadores de Produtividade</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Desempenho operacional do seu negócio</p>', unsafe_allow_html=True)
     st.markdown("---")
     
     if df.empty:
-        st.warning("⚠️ Ainda não existem dados suficientes para gerar relatórios visuais. Registe algumas demandas no painel Operacional.")
+        st.warning("⚠️ Sem dados suficientes. Registe demandas na aba Operacional.")
     else:
-        # Métricas de Resumo no Topo
-        total_demandas = len(df)
-        encerradas = len(df[df["status"] == "Encerrado"])
-        taxa_resolucao = round((encerradas / total_demandas) * 100, 1) if total_demandas > 0 else 0.0
-        urgentes = len(df[df["prioridade"] == "Urgente"])
+        tot, enc = len(df), len(df[df["status"] == "Encerrado"])
+        taxa = round((enc / tot) * 100, 1) if tot > 0 else 0.0
         
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Volume Total", total_demandas)
-        m2.metric("Demandas Concluídas", encerradas)
-        m3.metric("Taxa de Resolução", f"{taxa_resolucao}%")
-        m4.metric("Demandas Urgentes", urgentes, delta_color="inverse")
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Volume Total", tot)
+        m2.metric("Concluídas", enc)
+        m3.metric("Taxa de Resolução", f"{taxa}%")
         
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        col_g1, col_g2 = st.columns(2)
-        
-        with col_g1:
-            st.markdown("##### 📌 Distribuição por Status")
-            status_counts = df["status"].value_counts().reset_index()
-            status_counts.columns = ["Status", "Quantidade"]
-            st.bar_chart(status_counts.set_index("Status"))
-            
-        with col_g2:
-            st.markdown("##### ⚡ Volume por Nível de Prioridade")
-            prio_counts = df["prioridade"].value_counts().reset_index()
-            prio_counts.columns = ["Prioridade", "Quantidade"]
-            st.bar_chart(prio_counts.set_index("Prioridade"))
-            
-        st.markdown("---")
-        
-        # Análise por Responsável / Origem
-        if "reportado" in df.columns:
-            st.markdown("##### 🏛️ Carga de Trabalho por Origem / Delegado")
-            df_report = df[df["reportado"].notnull() & (df["reportado"] != "")]
-            if not df_report.empty:
-                rep_counts = df_report["reportado"].value_counts().reset_index()
-                rep_counts.columns = ["Origem / Responsável", "Total de Demandas"]
-                st.dataframe(rep_counts, use_container_width=True)
-            else:
-                st.info("Nenhuma demanda atribuída a origens/responsáveis específicos até ao momento.")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("##### 📌 Status")
+            st.bar_chart(df["status"].value_counts())
+        with c2:
+            st.markdown("##### ⚡ Prioridades")
+            st.bar_chart(df["prioridade"].value_counts())
 
 # ==========================================
-# ABA 3: FAQ & CENTRAL DE AJUDA
+# ABA: CENTRAL DE AJUDA
 # ==========================================
-elif aba_selecionada == "❓ FAQ & Ajuda":
+elif aba_selecionada == "❓ Central de Ajuda":
     st.markdown('<p class="main-title">❓ Central de Dúvidas & Procedimentos</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Consultas rápidas sobre o funcionamento do sistema e regras de negócio</p>', unsafe_allow_html=True)
     st.markdown("---")
-    
-    busca_faq = st.text_input("🔍 Pesquisar dúvida ou palavra-chave", placeholder="Ex: login, trocar senha, WhatsApp, cobrança...")
+    busca_faq = st.text_input("🔍 Pesquisar dúvida", placeholder="Ex: login, pagamento, WhatsApp...")
     
     faqs = [
-        {
-            "cat": "🔑 Acesso e Conta",
-            "pergunta": "Como alterar as credenciais de login?",
-            "resposta": "No primeiro acesso, o sistema força a alteração da palavra-passe e definição do segmento. Caso precise de alterar novamente mais tarde, solicite o reset ao administrador geral."
-        },
-        {
-            "cat": "📋 Operacional",
-            "pergunta": "Como abrir um atendimento no WhatsApp diretamente pelo sistema?",
-            "resposta": "Dentro de cada card de demanda exposto na lista operacional, se o número de telemóvel for inserido corretamente, o botão verde 'Conversar no WhatsApp' redireciona automaticamente para o contacto."
-        },
-        {
-            "cat": "📋 Operacional",
-            "pergunta": "O que significa o status 'Delegado'?",
-            "resposta": "Quando preenche o campo 'Origem / Delegado a' durante a criação da demanda, o sistema categoriza automaticamente essa demanda como Delegada a um terceiro."
-        },
-        {
-            "cat": "💼 Assinatura & Cobrança",
-            "pergunta": "O que acontece se a mensalidade estiver em atraso?",
-            "resposta": "Caso o campo 'ativo' no banco de dados seja alterado para FALSE pelo administrador, o utilizador verá uma mensagem de bloqueio por inadimplência ao tentar fazer login."
-        },
-        {
-            "cat": "🏷️ Nichos e Configuração",
-            "pergunta": "Como funcionam os rótulos dinâmicos?",
-            "resposta": "O sistema adapta os nomes dos campos de acordo com o segmento (ex: 'Aluno' para Personal Trainer vs. 'Paciente' para Clínicas de Saúde), garantindo maior adequação ao negócio."
-        }
+        {"cat": "👑 Admin SaaS", "pergunta": "Como ver o painel master de assinantes?", "resposta": "O painel master aparece automaticamente no menu lateral quando faz login com a conta de utilizador 'admin'."},
+        {"cat": "💼 Assinatura", "pergunta": "Como suspender o acesso de um cliente inadimplente?", "resposta": "Basta alterar o campo 'ativo' para FALSE na tabela de assinantes no Supabase."}
     ]
     
-    # Filtragem de perguntas
-    faqs_filtradas = [
-        f for f in faqs 
-        if busca_faq.lower() in f["pergunta"].lower() or busca_faq.lower() in f["resposta"].lower() or busca_faq.lower() in f["cat"].lower()
-    ]
-    
-    if faqs_filtradas:
-        for item in faqs_filtradas:
-            with st.expander(f"[{item['cat']}] **{item['pergunta']}**"):
-                st.write(item["resposta"])
-    else:
-        st.info("Nenhuma dúvida encontrada para o termo pesquisado.")
+    for item in [f for f in faqs if busca_faq.lower() in f["pergunta"].lower() or busca_faq.lower() in f["cat"].lower()]:
+        with st.expander(f"[{item['cat']}] **{item['pergunta']}**"):
+            st.write(item["resposta"])
