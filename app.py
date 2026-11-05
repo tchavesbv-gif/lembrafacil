@@ -7,7 +7,7 @@ from PIL import Image
 
 # Configuração da página
 st.set_page_config(
-    page_title="Gestor Prático SaaS - Master",
+    page_title="Gestor Prático SaaS - Gestão",
     page_icon="👑",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -119,7 +119,7 @@ if st.session_state.logged_in and user.get("deve_trocar_credenciais", False):
                 st.error("⚠️ Preencha os campos corretamente.")
     st.stop()
 
-# VERIFICA SE É O MASTER ADMIN (Ex: se o utilizador for 'admin')
+# VERIFICA SE É O MASTER ADMIN
 is_master_admin = (user.get("usuario") == "admin")
 
 # RÓTULOS POR NICHO
@@ -176,9 +176,10 @@ st.sidebar.markdown(f"### ⚙️ {user.get('nome_empresa', 'Gestor Prático')}")
 st.sidebar.markdown(f"**Segmento:** {nicho}")
 st.sidebar.markdown("---")
 
+# Se for admin, a primeira opção é o Painel Master focado puramente em gestão
 opcoes_menu = ["📋 Operacional", "📊 Meus Indicadores (BI)", "❓ Central de Ajuda"]
 if is_master_admin:
-    opcoes_menu.insert(0, "👑 Painel Master SaaS (Admin)")
+    opcoes_menu.insert(0, "👑 Gestão do Sistema (Master)")
 
 aba_selecionada = st.sidebar.radio("Navegação", opcoes_menu)
 
@@ -192,19 +193,17 @@ dados_demandas = carregar_demandas(user["id"])
 df = pd.DataFrame(dados_demandas) if dados_demandas else pd.DataFrame()
 
 # ==========================================
-# PAINEL MASTER SAAS (EXCLUSIVO DO CRIADOR/ADMIN)
+# GESTÃO DO SISTEMA (MASTER) - EXCLUSIVO PARA O DONO
 # ==========================================
-if is_master_admin and aba_selecionada == "👑 Painel Master SaaS (Admin)":
-    st.markdown('<p class="main-title">👑 Painel Master & Business Intelligence do SaaS</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Métricas de negócio globais, controlo de assinantes e receita</p>', unsafe_allow_html=True)
+if is_master_admin and aba_selecionada == "👑 Gestão do Sistema (Master)":
+    st.markdown('<p class="main-title">👑 Painel de Controlo e Gestão do Micro-SaaS</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Métricas de negócio, receita recorrente, controlo de assinantes e saúde da plataforma</p>', unsafe_allow_html=True)
     st.markdown("---")
     
     try:
-        # Buscar todos os assinantes cadastrados na plataforma
         res_assinantes = supabase.table("assinantes").select("*").execute()
         df_assinantes = pd.DataFrame(res_assinantes.data) if res_assinantes.data else pd.DataFrame()
         
-        # Buscar todas as demandas de TODOS os clientes para métricas globais
         res_todas_demandas = supabase.table("pacientes_demandas").select("*").execute()
         df_todas_demandas = pd.DataFrame(res_todas_demandas.data) if res_todas_demandas.data else pd.DataFrame()
         
@@ -212,40 +211,39 @@ if is_master_admin and aba_selecionada == "👑 Painel Master SaaS (Admin)":
             total_assinantes = len(df_assinantes)
             ativos = len(df_assinantes[df_assinantes["ativo"] == True]) if "ativo" in df_assinantes.columns else total_assinantes
             inadimplentes = total_assinantes - ativos
-            
-            # Cálculo fictício/projetado de MRR considerando R$ 14,90 por assinante ativo
             mrr_estimado = ativos * 14.90
             
+            # Cards de Métricas do Negócio (SaaS KPIs)
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Total de Assinantes", total_assinantes)
-            c2.metric("Assinantes Ativos", ativos, delta="🟢 Regular")
-            c3.metric("Inadimplentes / Suspensos", inadimplentes, delta="🔴 Bloqueados" if inadimplentes > 0 else "0")
-            c4.metric("MRR Estimado", f"R$ {mrr_estimado:.2f}", delta="📈 R$ 14.90/mês")
+            c2.metric("Clientes Ativos", ativos, delta="🟢 Regular")
+            c3.metric("Bloqueados (Inadimplentes)", inadimplentes, delta="🔴 Risco" if inadimplentes > 0 else "0")
+            c4.metric("MRR Estimado", f"R$ {mrr_estimado:.2f}", delta="📈 Plano Base")
             
             st.markdown("<br>", unsafe_allow_html=True)
             
             col_m1, col_m2 = st.columns(2)
             with col_m1:
-                st.markdown("##### 🏢 Distribuição por Segmento (Nicho)")
+                st.markdown("##### 🏢 Adoção por Nicho / Segmento")
                 if "nicho" in df_assinantes.columns:
                     nicho_counts = df_assinantes["nicho"].value_counts().reset_index()
                     nicho_counts.columns = ["Segmento", "Assinantes"]
                     st.bar_chart(nicho_counts.set_index("Segmento"))
                 
             with col_m2:
-                st.markdown("##### 🌐 Volume Global de Operações na Plataforma")
-                st.metric("Total de Demandas Registradas no SaaS", len(df_todas_demandas))
+                st.markdown("##### 🌐 Volume Geral de Uso da Tecnologia")
+                st.metric("Total de Registros na Base Global", len(df_todas_demandas))
                 if not df_todas_demandas.empty and "status" in df_todas_demandas.columns:
                     status_global = df_todas_demandas["status"].value_counts().reset_index()
                     status_global.columns = ["Status", "Quantidade"]
                     st.bar_chart(status_global.set_index("Status"))
             
             st.markdown("---")
-            st.markdown("##### 👥 Lista de Assinantes Cadastrados na Base")
+            st.markdown("##### 👥 Carteira de Clientes Cadastrados")
             st.dataframe(df_assinantes[["id", "nome_empresa", "usuario", "nicho", "ativo"]], use_container_width=True)
             
         else:
-            st.info("Nenhum assinante encontrado.")
+            st.info("Nenhum assinante registado na base.")
             
     except Exception as e:
         st.error(f"Erro ao carregar dados do painel Master: {e}")
@@ -384,8 +382,8 @@ elif aba_selecionada == "❓ Central de Ajuda":
     busca_faq = st.text_input("🔍 Pesquisar dúvida", placeholder="Ex: login, pagamento, WhatsApp...")
     
     faqs = [
-        {"cat": "👑 Admin SaaS", "pergunta": "Como ver o painel master de assinantes?", "resposta": "O painel master aparece automaticamente no menu lateral quando faz login com a conta de utilizador 'admin'."},
-        {"cat": "💼 Assinatura", "pergunta": "Como suspender o acesso de um cliente inadimplente?", "resposta": "Basta alterar o campo 'ativo' para FALSE na tabela de assinantes no Supabase."}
+        {"cat": "👑 Gestão SaaS", "pergunta": "Como funciona o painel de controlo de assinantes?", "resposta": "O painel 'Gestão do Sistema (Master)' exibe os KPIs globais de clientes, MRR estimado e volume total na plataforma."},
+        {"cat": "💼 Assinatura", "pergunta": "Como bloquear um cliente inadimplente?", "resposta": "Basta definir o campo 'ativo' como FALSE para o cliente correspondente na tabela assinantes do Supabase."}
     ]
     
     for item in [f for f in faqs if busca_faq.lower() in f["pergunta"].lower() or busca_faq.lower() in f["cat"].lower()]:
